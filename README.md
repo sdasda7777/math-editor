@@ -7,7 +7,7 @@ Math Editor is a free alternative to expensive commercial products like MathType
 
 This fork is currently being worked on, and is set to address minor features that were missing in original version.
 
-Seomewhat implemented features:
+Somewhat implemented features:
 
 - Multiple tabs
 
