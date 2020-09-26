@@ -15,6 +15,7 @@ using System.Globalization;
 using System.IO;
 using ICSharpCode.SharpZipLib.Zip;
 using ICSharpCode.SharpZipLib.Core;
+using System.Xml.Linq;
 
 namespace Editor
 {
@@ -107,63 +108,15 @@ namespace Editor
             Dirty = true;
         }
 
-        public void SaveFile(Stream stream, string fileName)
+        public XElement[] GetContentForSaving()
         {
-            //equationRoot.SaveFile(stream);
-            try
-            {
-                using (MemoryStream memoryStream = new MemoryStream())
-                {
-                    equationRoot.SaveFile(memoryStream);
-                    memoryStream.Position = 0;
-                    ZipStream(memoryStream, stream, System.IO.Path.GetFileNameWithoutExtension(fileName) + ".xml");
-                }
-            }
-            catch
-            {
-                MessageBox.Show("Could not save file. Make sure the specified path is correct.", "Error");
-            }
-            Dirty = false;
+            return equationRoot.GetContentForSaving();
         }
 
-        public void ZipStream(MemoryStream memStreamIn, Stream outputStream, string zipEntryName)
+        public void LoadTab(XElement rowContainer, XElement formattingElement)
         {
-            ZipOutputStream zipStream = new ZipOutputStream(outputStream);
-            zipStream.SetLevel(5); //0-9, 9 being the highest level of compression
-            ZipEntry newEntry = new ZipEntry(zipEntryName);
-            newEntry.DateTime = DateTime.Now;
-            zipStream.PutNextEntry(newEntry);
-            StreamUtils.Copy(memStreamIn, zipStream, new byte[4096]);
-            zipStream.CloseEntry();
-            zipStream.IsStreamOwner = false;	// False stops the Close also Closing the underlying stream.
-            zipStream.Close();			// Must finish the ZipOutputStream before using outputMemStream.            
-        }
-
-        public void LoadFile(Stream stream)
-        {
-            //equationRoot.LoadFile(stream);
-            try
-            {
-                ZipInputStream zipInputStream = new ZipInputStream(stream);
-                ZipEntry zipEntry = zipInputStream.GetNextEntry();
-                MemoryStream outputStream = new MemoryStream();
-                if (zipEntry != null)
-                {
-                    byte[] buffer = new byte[4096];
-                    StreamUtils.Copy(zipInputStream, outputStream, buffer);
-                }
-                outputStream.Position = 0;
-                using (outputStream)
-                {
-                    equationRoot.LoadFile(outputStream);
-                }
-            }
-            catch
-            {
-                stream.Position = 0;
-                equationRoot.LoadFile(stream);
-                //MessageBox.Show("Cannot open the specified file. The file is not in correct format.", "Error");
-            }
+            equationRoot.LoadTab(rowContainer, formattingElement);
+            
             AdjustView();
             Dirty = false;
         }

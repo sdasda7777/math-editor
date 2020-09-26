@@ -17,6 +17,9 @@ using System.IO;
 using System.Reflection;
 using System.ComponentModel;
 using System.Windows.Controls.Primitives;
+using System.Xml.Linq;
+using ICSharpCode.SharpZipLib.Zip;
+using ICSharpCode.SharpZipLib.Core;
 
 namespace Editor
 {
@@ -30,7 +33,8 @@ namespace Editor
         string currentLocalFile = "";
         static string meExtension = "med";
         static string meFileFilter = "Math Editor File (*." + meExtension + ")|*." + meExtension;
-        
+
+        string fileVersion = "1.5";
 
         public MainWindow()
         {
@@ -59,7 +63,7 @@ namespace Editor
             EquationBase.SelectionUnavailable += new EventHandler<EventArgs>(editor_SelectionUnavailable);
             underbarToggle.IsChecked = true;
             TextEquation.InputPropertyChanged += new System.ComponentModel.PropertyChangedEventHandler(TextEquation_InputPropertyChanged);
-            editor.ZoomChanged += new EventHandler(editor_ZoomChanged);
+            //((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ZoomChanged += new EventHandler(editor_ZoomChanged);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -94,7 +98,7 @@ namespace Editor
             }
             ChangeEditorMode();
             ChangeEditorFont();
-            editor.Focus();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
         }        
 
         void editor_SelectionUnavailable(object sender, EventArgs e)
@@ -179,13 +183,13 @@ namespace Editor
                 {
                     CommandDetails newCommand = new CommandDetails { CommandType = CommandType.Matrix };
                     newCommand.CommandParam = new int[] { x, y };
-                    editor.HandleUserCommand(newCommand);
+                    ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).HandleUserCommand(newCommand);
                 };
                 inputForm.ShowDialog(this);
             }
             else
             {
-                editor.HandleUserCommand(commandDetails);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).HandleUserCommand(commandDetails);
                 if (commandDetails.CommandType == CommandType.Text)
                 {
                     historyToolBar.AddItem(commandDetails.UnicodeString);
@@ -201,10 +205,10 @@ namespace Editor
                 {
                     return;
                 }
-                else if (editor.IsMouseOver)
+                else if (((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).IsMouseOver)
                 {
                     //editor.HandleMouseDown();
-                    editor.Focus();
+                    ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
                 }
                 characterToolBar.HideVisiblePanel();
                 equationToolBar.HideVisiblePanel();
@@ -213,11 +217,11 @@ namespace Editor
 
         private void Window_TextInput(object sender, TextCompositionEventArgs e)
         {
-            if (!editor.IsFocused)
+            if (!((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).IsFocused)
             {
-                editor.Focus();
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
                 //editor.EditorControl_TextInput(null, e);
-                editor.ConsumeText(e.Text);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ConsumeText(e.Text);
                 characterToolBar.HideVisiblePanel();
                 equationToolBar.HideVisiblePanel();
             }
@@ -230,7 +234,17 @@ namespace Editor
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (editor.Dirty)
+            bool AnyDirty = false;
+
+            foreach (TabItem ti in MainTabControl.Items)
+            {
+                if (ti.Content != null && ((EditorControl)((ScrollViewer)ti.Content).Content).Dirty)
+                {
+                    AnyDirty = true;
+                }
+            }
+
+            if (AnyDirty)
             {
                 MessageBoxResult result = MessageBox.Show("Do you want to save the current document before closing?", "Please confirm", MessageBoxButton.YesNoCancel);
                 if (result == MessageBoxResult.Cancel)
@@ -250,7 +264,17 @@ namespace Editor
 
         private void OpenCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            if (editor.Dirty)
+            bool AnyDirty = false;
+
+            foreach (TabItem ti in MainTabControl.Items)
+            {
+                if (ti.Content != null && ((EditorControl)((ScrollViewer)ti.Content).Content).Dirty)
+                {
+                    AnyDirty = true;
+                }
+            }
+
+            if (AnyDirty)
             {
                 MessageBoxResult mbResult = MessageBox.Show("Do you want to save the current document before closing?", "Please confirm", MessageBoxButton.YesNoCancel);
                 if (mbResult == MessageBoxResult.Cancel)
@@ -281,7 +305,65 @@ namespace Editor
             {
                 using (Stream stream = File.OpenRead(fileName))
                 {
-                    editor.LoadFile(stream);
+                    MainTabControl.Items.Clear();
+                    Stream finstr = null;
+
+                    try {
+                        ZipInputStream zipInputStream = new ZipInputStream(stream);
+                        ZipEntry zipEntry = zipInputStream.GetNextEntry();
+                        MemoryStream outputStream = new MemoryStream();
+                        if (zipEntry != null)
+                        {
+                            byte[] buffer = new byte[4096];
+                            StreamUtils.Copy(zipInputStream, outputStream, buffer);
+                        }
+                        outputStream.Position = 0;
+                        finstr = outputStream;
+                    }
+                    catch{
+                        stream.Position = 0;
+                        finstr = stream;
+                    }
+
+                    XDocument xDoc = XDocument.Load(finstr, LoadOptions.PreserveWhitespace);
+                    XElement root = xDoc.Root;
+
+                    XElement formattingElement = root.Element("TextManager");
+                    XAttribute fileVersionAttribute = root.Attributes("fileVersion").FirstOrDefault();
+                    XAttribute appVersionAttribute = root.Attributes("appVersion").FirstOrDefault();
+                    string appVersion = appVersionAttribute != null ? appVersionAttribute.Value : "Unknown";
+                    if (fileVersionAttribute == null || fileVersionAttribute.Value != fileVersion)
+                    {
+                        MessageBox.Show("The file was created by a different version (v." + appVersion + ") of Math Editor and uses a different format." + Environment.NewLine + Environment.NewLine +
+                                        "Math Editor will still try to open and convert the file to the current version. The operation may fail. " + Environment.NewLine + Environment.NewLine +
+                                        "Please create a backup if you want to keep the original file intact.", "Message");
+                    }
+
+                    foreach (XElement rowCont in root.Elements("RowContainer"))
+                    {
+                        EditorControl newEditorControl = new EditorControl();
+                        //newEditorControl.Background = Transparent;
+                        newEditorControl.Focusable = true;
+                        //newEditorControl.FocusVisualStyle = "{x:Null}";
+                        newEditorControl.LoadTab(rowCont, formattingElement);
+                        newEditorControl.ZoomChanged += new EventHandler(editor_ZoomChanged);
+
+                        ScrollViewer newScrollViewer = new ScrollViewer();
+                        //FocusVisualStyle = "{x:Null}"
+                        newScrollViewer.Focusable = true;
+                        newScrollViewer.ScrollChanged += scrollViewer_ScrollChanged;
+                        newScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+                        newScrollViewer.Content = newEditorControl;
+
+                        TabItem newTabItem = new TabItem();
+                        newTabItem.Content = newScrollViewer;
+                        newTabItem.Header = (rowCont.Attribute("Name") != null ? rowCont.Attribute("Name").Value : "Tab " + (MainTabControl.Items.Count + 1));
+                        MainTabControl.Items.Add(newTabItem);
+                    }
+
+                    TabItem newTI = new TabItem();
+                    newTI.Header = "+";
+                    MainTabControl.Items.Add(newTI);
                 }
                 currentLocalFile = fileName;
             }
@@ -350,15 +432,74 @@ namespace Editor
             {
                 using (Stream stream = File.Open(currentLocalFile, FileMode.Create))
                 {
-                    editor.SaveFile(stream, currentLocalFile);
+                    using (MemoryStream memoryStream = new MemoryStream())
+                    {
+
+                        XDocument xDoc = new XDocument();
+                        XElement root = new XElement(GetType().Name); //ActiveChild.Serialize();
+
+                        root.Add(new XAttribute("fileVersion", fileVersion));
+                        root.Add(new XAttribute("appVersion", Assembly.GetEntryAssembly().GetName().Version));
+
+                        List<XElement> textManagers = new List<XElement>();
+                        List<XElement> conts = new List<XElement>();
+
+                        foreach (TabItem ti in MainTabControl.Items)
+                        {
+                            if(ti.Content != null)
+                            {
+                                XElement[] xear = ((EditorControl)((ScrollViewer)ti.Content).Content).GetContentForSaving();
+
+                                textManagers.Add(xear[0]);
+                                xear[1].SetAttributeValue("Name", ti.Header);
+                                conts.Add(xear[1]);
+                            }
+                        }
+
+                        //TODO merge for better effect
+
+                        foreach(XElement xe in textManagers)
+                        {
+                            root.Add(xe);
+                        }
+
+                        foreach (XElement xe in conts)
+                        {
+                            root.Add(xe);
+                        }
+
+                        xDoc.Add(root);
+                        xDoc.Save(memoryStream);
+                        memoryStream.Position = 0;
+
+                        ZipOutputStream zipStream = new ZipOutputStream(stream);
+                        zipStream.SetLevel(5); //0-9, 9 being the highest level of compression
+                        ZipEntry newEntry = new ZipEntry(System.IO.Path.GetFileNameWithoutExtension(currentLocalFile) + ".xml");
+                        newEntry.DateTime = DateTime.Now;
+                        zipStream.PutNextEntry(newEntry);
+                        StreamUtils.Copy(memoryStream, zipStream, new byte[4096]);
+                        zipStream.CloseEntry();
+                        zipStream.IsStreamOwner = false;    // False stops the Close also Closing the underlying stream.
+                        zipStream.Close();			// Must finish the ZipOutputStream before using outputMemStream.    
+
+                    }
                 }
+
+                foreach (TabItem ti in MainTabControl.Items)
+                {
+                    if (ti.Content != null)
+                    {
+                        ((EditorControl)((ScrollViewer)ti.Content).Content).Dirty = false;
+                    }
+                }
+
                 SetTitle();
                 return true;
             }
-            catch
+            catch(Exception e)
             {
                 MessageBox.Show("File could not be saved. Make sure you have permission to write the file to disk.", "Error");
-                editor.Dirty = true;
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Dirty = true;
             }
             return false;
         }
@@ -375,17 +516,17 @@ namespace Editor
 
         private void CutCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            editor.Copy(true);
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Copy(true);
         }
 
         private void CopyCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            editor.Copy(false);
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Copy(false);
         }
 
         private void PasteCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            editor.Paste();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Paste();
         }
 
         private void PrintCommandHandler(object sender, ExecutedRoutedEventArgs e)
@@ -395,17 +536,17 @@ namespace Editor
 
         private void UndoCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            editor.Undo();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Undo();
         }
 
         private void RedoCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            editor.Redo();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Redo();
         }
 
         private void SelectAllCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            editor.SelectAll();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).SelectAll();
         }
 
         private void Window_GotFocus(object sender, RoutedEventArgs e)
@@ -421,7 +562,7 @@ namespace Editor
                 string ext = Path.GetExtension(fileName);
                 if (ext != "." + imageType)
                     fileName += "." + imageType;
-                editor.ExportImage(fileName);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ExportImage(fileName);
             }
         }
 
@@ -436,7 +577,7 @@ namespace Editor
             {
                 showNestingMenuItem.Header = "Show Nesting";
             }
-            editor.InvalidateVisual();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).InvalidateVisual();
         }
 
         private void ToolBar_Loaded(object sender, RoutedEventArgs e)
@@ -451,7 +592,10 @@ namespace Editor
 
         private void UnderbarToggleCheckChanged(object sender, RoutedEventArgs e)
         {
-            editor.ShowOverbar(underbarToggle.IsChecked == true);
+            if(MainTabControl.SelectedItem != null)
+            {
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ShowOverbar(underbarToggle.IsChecked == true);
+            }
         }
 
         private void contentsMenuItem_Click(object sender, RoutedEventArgs e)
@@ -473,14 +617,14 @@ namespace Editor
 
         private void deleteMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            editor.DeleteSelection();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).DeleteSelection();
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
-            if (!editor.IsFocused)
+            if (!((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).IsFocused)
             {
-                editor.Focus();
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
                 characterToolBar.HideVisiblePanel();
                 equationToolBar.HideVisiblePanel();
             }
@@ -540,7 +684,7 @@ namespace Editor
             string percentage = lastZoomMenuItem.Header as string;
             if (!string.IsNullOrEmpty(percentage))
             {
-                editor.SetFontSizePercentage(int.Parse(percentage.Replace("%", "")));
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).SetFontSizePercentage(int.Parse(percentage.Replace("%", "")));
             }
         }
 
@@ -571,7 +715,7 @@ namespace Editor
                 lastZoomMenuItem.IsChecked = false;
                 lastZoomMenuItem = null;
             }
-            editor.SetFontSizePercentage(number);
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).SetFontSizePercentage(number);
         }
 
         private void exitFullScreenButton_Click(object sender, RoutedEventArgs e)
@@ -628,7 +772,7 @@ namespace Editor
             if (e.Source is TabControl)
             {
                 int pos = MainTabControl.SelectedIndex;
-                if (pos != 0 && pos == MainTabControl.Items.Count - 1)
+                if (pos > 0 && pos == MainTabControl.Items.Count - 1)
                 {
                     var tab = MainTabControl.Items[MainTabControl.Items.Count-1];
 
@@ -638,15 +782,16 @@ namespace Editor
                     //newEditorControl.Background = Transparent;
                     newEditorControl.Focusable = true;
                     //newEditorControl.FocusVisualStyle = "{x:Null}";
+                    newEditorControl.ZoomChanged += new EventHandler(editor_ZoomChanged);
 
                     ScrollViewer newScrollViewer = new ScrollViewer();
                     //FocusVisualStyle = "{x:Null}"
                     newScrollViewer.Focusable = true;
                     newScrollViewer.ScrollChanged += scrollViewer_ScrollChanged;
                     newScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+                    newScrollViewer.Content = newEditorControl;
 
                     ((TabItem)MainTabControl.Items[MainTabControl.Items.Count - 1]).Content = newScrollViewer;
-
 
                     TabItem newTabItem = new TabItem();
                     newTabItem.Header = "+";
@@ -657,7 +802,7 @@ namespace Editor
 
         private void scrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
-            editor.InvalidateVisual();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).InvalidateVisual();
         }
 
         public IntPtr Handle
@@ -685,7 +830,7 @@ namespace Editor
             {
                 TextEquation.InputPropertyChanged -= TextEquation_InputPropertyChanged;
                 TextEquation.InputBold = value;
-                editor.ChangeFormat("format", "bold", value);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ChangeFormat("format", "bold", value);
                 TextEquation.InputPropertyChanged += TextEquation_InputPropertyChanged;
             }
         }
@@ -700,7 +845,7 @@ namespace Editor
             {
                 TextEquation.InputPropertyChanged -= TextEquation_InputPropertyChanged;
                 TextEquation.InputItalic = value;
-                editor.ChangeFormat("format", "italic", value);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ChangeFormat("format", "italic", value);
                 TextEquation.InputPropertyChanged += TextEquation_InputPropertyChanged;
             }
         }
@@ -715,7 +860,7 @@ namespace Editor
             {
                 TextEquation.InputPropertyChanged -= TextEquation_InputPropertyChanged;
                 TextEquation.InputUnderline = value;
-                editor.ChangeFormat("format", "underline", value);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ChangeFormat("format", "underline", value);
                 TextEquation.InputPropertyChanged += TextEquation_InputPropertyChanged;
             }
         }
@@ -755,13 +900,13 @@ namespace Editor
 
         private void ChangeEditorFont()
         {
-            if (editor != null)
+            if (((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content) != null)
             {
                 TextEquation.InputPropertyChanged -= TextEquation_InputPropertyChanged;
                 TextEquation.FontType = (FontType)Enum.Parse(typeof(FontType), (string)((ComboBoxItem)equationFontCombo.SelectedItem).Tag);
-                editor.ChangeFormat("font", (string)((ComboBoxItem)equationFontCombo.SelectedItem).Tag, true);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ChangeFormat("font", (string)((ComboBoxItem)equationFontCombo.SelectedItem).Tag, true);
                 TextEquation.InputPropertyChanged += TextEquation_InputPropertyChanged;
-                editor.Focus();
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
             }
         }
 
@@ -779,16 +924,16 @@ namespace Editor
 
         private void ChangeEditorMode()
         {
-            if (editor != null)
+            if (((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content) != null)
             {
                 ComboBoxItem item = (ComboBoxItem)editorModeCombo.SelectedItem;
                 EditorMode mode = (EditorMode)Enum.Parse(typeof(EditorMode), item.Tag.ToString()); 
 
                 TextEquation.InputPropertyChanged -= TextEquation_InputPropertyChanged;
                 TextEquation.EditorMode = (EditorMode)Enum.Parse(typeof(EditorMode), (string)((ComboBoxItem)editorModeCombo.SelectedItem).Tag);
-                editor.ChangeFormat("mode", mode.ToString().ToLower(), true);
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).ChangeFormat("mode", mode.ToString().ToLower(), true);
                 TextEquation.InputPropertyChanged += TextEquation_InputPropertyChanged;
-                editor.Focus();
+                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
             }
         }
 
@@ -805,7 +950,7 @@ namespace Editor
 
         private void NewCommandHandler(object sender, ExecutedRoutedEventArgs e)
         {
-            if (editor.Dirty)
+            if (((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Dirty)
             {
                 MessageBoxResult result = MessageBox.Show("Do you want to save the current document before closing?", "Please confirm", MessageBoxButton.YesNoCancel);
                 if (result == MessageBoxResult.Cancel)
@@ -822,7 +967,7 @@ namespace Editor
             }
             currentLocalFile = "";
             SetTitle();
-            editor.Clear();
+            ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Clear();
         }
 
         private void settingsMenuItem_Click(object sender, RoutedEventArgs e)

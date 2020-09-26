@@ -19,7 +19,6 @@ namespace Editor
     {
         Caret vCaret;
         Caret hCaret;
-        string fileVersion = "1.4";
         string sessionString = Guid.NewGuid().ToString();
 
         public EquationRoot(Caret vCaret, Caret hCaret)
@@ -40,50 +39,26 @@ namespace Editor
             AdjustCarets();
         }
 
-        public void SaveFile(Stream stream)
+        public XElement[] GetContentForSaving()
         {
-            XDocument xDoc = new XDocument();
-            XElement root = new XElement(GetType().Name); //ActiveChild.Serialize();
-            root.Add(new XAttribute("fileVersion", fileVersion));
-            root.Add(new XAttribute("appVersion", Assembly.GetEntryAssembly().GetName().Version));
+            List<XElement> ret = new List<XElement>();
+
             textManager.OptimizeForSave(this);
-            root.Add(textManager.Serialize());
-            root.Add(ActiveChild.Serialize());
-            xDoc.Add(root);
-            xDoc.Save(stream);
+            ret.Add(textManager.Serialize());
+            ret.Add(ActiveChild.Serialize());
             textManager.RestoreAfterSave(this);
+
+            return ret.ToArray();
         }
 
-        public void LoadFile(Stream stream)
+        public void LoadTab(XElement rowContainer, XElement formattingElement)
         {
             UndoManager.ClearAll();
             DeSelect();
-            XDocument xDoc = XDocument.Load(stream, LoadOptions.PreserveWhitespace);
-            XElement root = xDoc.Root;
-            XAttribute fileVersionAttribute;
-            XAttribute appVersionAttribute;
-
-            if (root.Name == GetType().Name)
-            {
-                XElement formattingElement = root.Element("TextManager");
-                textManager.DeSerialize(formattingElement);
-                fileVersionAttribute = root.Attributes("fileVersion").FirstOrDefault();
-                appVersionAttribute = root.Attributes("appVersion").FirstOrDefault();
-                root = root.Element("RowContainer");
-            }
-            else
-            {
-                fileVersionAttribute = root.Attributes("fileVersion").FirstOrDefault();
-                appVersionAttribute = root.Attributes("appVersion").FirstOrDefault();
-            }            
-            string appVersion = appVersionAttribute != null ? appVersionAttribute.Value : "Unknown";
-            if (fileVersionAttribute == null || fileVersionAttribute.Value != fileVersion)
-            {
-                MessageBox.Show("The file was created by a different version (v." + appVersion + ") of Math Editor and uses a different format." + Environment.NewLine + Environment.NewLine +
-                                "Math Editor will still try to open and convert the file to the current version. The operation may fail. " + Environment.NewLine + Environment.NewLine +
-                                "Please create a backup if you want to keep the original file intact.", "Message");
-            }
-            ActiveChild.DeSerialize(root);
+            
+            textManager.DeSerialize(formattingElement);
+                        
+            ActiveChild.DeSerialize(rowContainer);
             CalculateSize();
             AdjustCarets();
         }
