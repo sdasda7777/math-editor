@@ -94,7 +94,7 @@ namespace Editor
             }
             ChangeEditorMode();
             ChangeEditorFont();
-            editor.Focus();            
+            editor.Focus();
         }        
 
         void editor_SelectionUnavailable(object sender, EventArgs e)
@@ -622,7 +622,7 @@ namespace Editor
             EquationRow.UseItalicIntergalOnNew = false;
         }
 
-        private void scrollViwer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        private void scrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             editor.InvalidateVisual();
         }

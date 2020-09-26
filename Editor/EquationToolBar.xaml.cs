@@ -72,6 +72,7 @@ namespace Editor
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
+            /*
             CreateBracketsPanel();
             CreateSumsProductsPanel();
             CreateIntegralsPanel();
@@ -83,6 +84,7 @@ namespace Editor
             CreateArrowEquationPanel();
             CreateBoxEquationPanel();
             CreateMatrixPanel();
+            //*/
         }
 
         void CreatePanel(List<CommandDetails> list, Button toolBarButton, int columns, int margin)
