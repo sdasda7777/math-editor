@@ -72,7 +72,7 @@ namespace Editor
 
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            /*
+            //*
             CreateBracketsPanel();
             CreateSumsProductsPanel();
             CreateIntegralsPanel();

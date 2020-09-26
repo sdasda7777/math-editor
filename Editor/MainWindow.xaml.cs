@@ -37,11 +37,11 @@ namespace Editor
             this.DataContext = this;
             InitializeComponent();
             StatusBarHelper.Init(this);
-            characterToolBar.CommandCompleted += (x, y) => { editor.Focus(); };
-            equationToolBar.CommandCompleted += (x, y) => { editor.Focus(); };
+            characterToolBar.CommandCompleted += (x, y) => { ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus(); };
+            equationToolBar.CommandCompleted += (x, y) => { ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus(); };
             SetTitle();
             AddHandler(UIElement.MouseDownEvent, new MouseButtonEventHandler(MainWindow_MouseDown), true);
-            Task.Factory.StartNew(CheckForUpdate);
+            //Task.Factory.StartNew(CheckForUpdate);
             //if (ConfigManager.GetConfigurationValue(KeyName.firstTime) == "true" || ConfigManager.GetConfigurationValue(KeyName.version) != version)
             //{
             //    string successMessage = "";
@@ -134,7 +134,7 @@ namespace Editor
         //    return image;
         //}
 
-        void CheckForUpdate()
+        /*void CheckForUpdate()
         {
             if (ConfigManager.GetConfigurationValue(KeyName.checkUpdates) == "false")
             {
@@ -168,7 +168,7 @@ namespace Editor
                 }
             }
             catch { } // hopeless..
-        }
+        }*/
 
         public void HandleToolBarCommand(CommandDetails commandDetails)
         {
@@ -285,10 +285,11 @@ namespace Editor
                 }
                 currentLocalFile = fileName;
             }
-            catch
+            catch(Exception e)
             {
                 currentLocalFile = "";
-                MessageBox.Show("File is corrupt or inaccessible OR it was created by an incompatible version of Math Editor.", "Error");
+                MessageBox.Show("File is corrupt or inaccessible OR it was created by an incompatible version of Math Editor.\n\n"+
+                   e.ToString() , "Error");
             }
             SetTitle();
         }
@@ -620,6 +621,38 @@ namespace Editor
         private void integralItalicCheckbox_Unchecked(object sender, RoutedEventArgs e)
         {
             EquationRow.UseItalicIntergalOnNew = false;
+        }
+
+        private void MainTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (e.Source is TabControl)
+            {
+                int pos = MainTabControl.SelectedIndex;
+                if (pos != 0 && pos == MainTabControl.Items.Count - 1)
+                {
+                    var tab = MainTabControl.Items[MainTabControl.Items.Count-1];
+
+                    ((TabItem)MainTabControl.Items[MainTabControl.Items.Count - 1]).Header = "Tab "+ (pos+1);
+
+                    EditorControl newEditorControl = new EditorControl();
+                    //newEditorControl.Background = Transparent;
+                    newEditorControl.Focusable = true;
+                    //newEditorControl.FocusVisualStyle = "{x:Null}";
+
+                    ScrollViewer newScrollViewer = new ScrollViewer();
+                    //FocusVisualStyle = "{x:Null}"
+                    newScrollViewer.Focusable = true;
+                    newScrollViewer.ScrollChanged += scrollViewer_ScrollChanged;
+                    newScrollViewer.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
+
+                    ((TabItem)MainTabControl.Items[MainTabControl.Items.Count - 1]).Content = newScrollViewer;
+
+
+                    TabItem newTabItem = new TabItem();
+                    newTabItem.Header = "+";
+                    MainTabControl.Items.Add(newTabItem);
+                }
+            }
         }
 
         private void scrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)

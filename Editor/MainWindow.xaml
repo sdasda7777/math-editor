@@ -208,13 +208,14 @@
             <Label Name="statusBarLeftLabel" Height="25"></Label>
             <Label Grid.Column="1" Name="statusBarRightLabel" Height="25" HorizontalAlignment="Right"></Label>
         </Grid>
-        
-        <TabControl>
-            <TabItem Header="TabItem">
+
+        <TabControl Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
+            <TabItem Header="Tab 1">
                 <ScrollViewer x:Name="scrollViewer" FocusVisualStyle="{x:Null}" Focusable="True" ScrollChanged="scrollViewer_ScrollChanged" HorizontalScrollBarVisibility="Auto">
                     <local:EditorControl Background="Transparent" x:Name="editor" Focusable="True"  FocusVisualStyle="{x:Null}"></local:EditorControl>
                 </ScrollViewer>
             </TabItem>
+            <TabItem Header="+" ></TabItem>
         </TabControl>
         
     </DockPanel>
