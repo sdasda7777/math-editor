@@ -212,6 +212,7 @@
         <TabControl>
             <TabItem Header="TabItem">
                 <ScrollViewer x:Name="scrollViewer" FocusVisualStyle="{x:Null}" Focusable="True" ScrollChanged="scrollViewer_ScrollChanged" HorizontalScrollBarVisibility="Auto">
+                    <local:EditorControl Background="Transparent" x:Name="editor" Focusable="True"  FocusVisualStyle="{x:Null}"></local:EditorControl>
                 </ScrollViewer>
             </TabItem>
         </TabControl>
