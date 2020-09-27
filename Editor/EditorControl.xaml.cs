@@ -17,6 +17,8 @@ using ICSharpCode.SharpZipLib.Zip;
 using ICSharpCode.SharpZipLib.Core;
 using System.Xml.Linq;
 
+using System.Threading.Tasks;
+
 namespace Editor
 {
     /// <summary>

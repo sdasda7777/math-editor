@@ -53,6 +53,11 @@ namespace Editor
             Dispatcher.Invoke(new Action(() => { Visible = !Visible; }));
         }
 
+        public void SetVisibility(bool visible)
+        {
+            Dispatcher.Invoke(new Action(() => { Visible = visible; }));
+        }
+
         bool Visible
         {
             get

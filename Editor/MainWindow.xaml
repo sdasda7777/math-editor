@@ -216,6 +216,36 @@
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="+" ></TabItem>
+
+            <TabControl.Resources>
+                <Style x:Key="baseCM" TargetType="FrameworkElement">
+                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                </Style>
+
+                <Style TargetType="{x:Type TabItem}" BasedOn="{StaticResource baseCM}">
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu>
+                                <MenuItem Header="Rename (Not working)" Name="Rename"/>
+                                <MenuItem Header="Delete (Not working)" Name="Delete"/>
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+                <Style TargetType="{x:Type local:EditorControl}" BasedOn="{StaticResource baseCM}">
+                    <Setter Property="ContextMenu">
+                        <Setter.Value>
+                            <ContextMenu>
+                                <MenuItem Header="Cut (Not working)" Name="Cut"/>
+                                <MenuItem Header="Copy (Not working)" Name="Copy"/>
+                                <MenuItem Header="Paste (Not working)" Name="Paste"/>
+                            </ContextMenu>
+                        </Setter.Value>
+                    </Setter>
+                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                    <Setter Property="VerticalAlignment" Value="Stretch"/>
+                </Style>
+            </TabControl.Resources>
         </TabControl>
         
     </DockPanel>

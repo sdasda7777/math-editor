@@ -21,6 +21,8 @@ using System.Xml.Linq;
 using ICSharpCode.SharpZipLib.Zip;
 using ICSharpCode.SharpZipLib.Core;
 
+using System.Windows.Threading;
+
 namespace Editor
 {
     /// <summary>
@@ -347,6 +349,7 @@ namespace Editor
                         //newEditorControl.FocusVisualStyle = "{x:Null}";
                         newEditorControl.LoadTab(rowCont, formattingElement);
                         newEditorControl.ZoomChanged += new EventHandler(editor_ZoomChanged);
+                        newEditorControl.IsVisibleChanged += new DependencyPropertyChangedEventHandler(IsVisibleChanged);
 
                         ScrollViewer newScrollViewer = new ScrollViewer();
                         //FocusVisualStyle = "{x:Null}"
@@ -624,7 +627,13 @@ namespace Editor
         {
             if (!((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).IsFocused)
             {
-                ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
+                Dispatcher.BeginInvoke(
+                DispatcherPriority.ContextIdle,
+                new Action(delegate ()
+                {
+                    ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
+                }));
+
                 characterToolBar.HideVisiblePanel();
                 equationToolBar.HideVisiblePanel();
             }
@@ -783,6 +792,7 @@ namespace Editor
                     newEditorControl.Focusable = true;
                     //newEditorControl.FocusVisualStyle = "{x:Null}";
                     newEditorControl.ZoomChanged += new EventHandler(editor_ZoomChanged);
+                    newEditorControl.IsVisibleChanged += new DependencyPropertyChangedEventHandler(IsVisibleChanged);
 
                     ScrollViewer newScrollViewer = new ScrollViewer();
                     //FocusVisualStyle = "{x:Null}"
@@ -797,6 +807,25 @@ namespace Editor
                     newTabItem.Header = "+";
                     MainTabControl.Items.Add(newTabItem);
                 }
+
+
+                /*if (pos < MainTabControl.Items.Count - 1)
+                {
+                    ((EditorControl)((ScrollViewer)((TabItem)MainTabControl.SelectedItem).Content).Content).Focus();
+                }*/
+            }
+        }
+
+        private void IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if ((bool)e.NewValue == true)
+            {
+                Dispatcher.BeginInvoke(
+                DispatcherPriority.ContextIdle,
+                new Action(delegate ()
+                {
+                    ((EditorControl)sender).Focus();
+                }));
             }
         }
 
