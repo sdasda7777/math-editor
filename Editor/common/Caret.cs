@@ -23,7 +23,7 @@ namespace Editor
 
         protected override void OnRender(DrawingContext dc)
         {
-            if (Visible)
+            if (!isHorizontal /*Visible*/)
             {
                 dc.DrawLine(PenManager.GetPen(Math.Max(1, EditorControl.RootFontSize * .8 / EditorControl.rootFontBaseSize)), location, OtherPoint);
             }

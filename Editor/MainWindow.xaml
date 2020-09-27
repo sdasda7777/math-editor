@@ -211,8 +211,8 @@
 
         <TabControl Name="MainTabControl" SelectionChanged="MainTabControl_SelectionChanged">
             <TabItem Header="Tab 1">
-                <ScrollViewer x:Name="scrollViewerZZZ" FocusVisualStyle="{x:Null}" Focusable="True" ScrollChanged="scrollViewer_ScrollChanged" HorizontalScrollBarVisibility="Auto">
-                    <local:EditorControl Background="Transparent" x:Name="editorZZZ" Focusable="True"  FocusVisualStyle="{x:Null}" ZoomChanged="editor_ZoomChanged"></local:EditorControl>
+                <ScrollViewer FocusVisualStyle="{x:Null}" Focusable="True" ScrollChanged="scrollViewer_ScrollChanged" HorizontalScrollBarVisibility="Auto">
+                    <local:EditorControl Background="Transparent" Focusable="True"  FocusVisualStyle="{x:Null}" ZoomChanged="editor_ZoomChanged"></local:EditorControl>
                 </ScrollViewer>
             </TabItem>
             <TabItem Header="+" ></TabItem>
