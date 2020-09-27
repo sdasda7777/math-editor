@@ -16,10 +16,10 @@ Planned features:
 - Highlighters
 - Customizable shortcuts
 
-Known bugs (probably exist in original):
+Known bugs (exist in original):
 
-- Carets are curious
-- Focus is funky
+- Carets seem to lag behind
+- Focus is sometimes funky when combining mouse and keyboard input
 
 The architecture of Math Editor has been explained in this article on The Code Project: http://www.codeproject.com/Articles/522345/OOP-in-the-Real-World-Creating-an-Equation-Editor
 
